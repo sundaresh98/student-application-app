@@ -3,14 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Create a form</title>
+    <title>{% if form %}Edit{% else %}Create{% endif %} a form</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <main class="admin-shell">
         <section class="builder-shell">
             <p class="eyebrow">Form builder</p>
-            <h1>Create a student form</h1>
+            <h1>{% if form %}Edit{% else %}Create{% endif %} a student form</h1>
             <p class="intro">Add questions and choose how students should respond.</p>
 
             {% if errors %}
@@ -22,10 +22,10 @@
                 <input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
 
                 <label for="title">Form title</label>
-                <input id="title" name="title" type="text" required placeholder="2026 Student Application">
+                <input id="title" name="title" type="text" value="{{ form.title if form else '' }}" required placeholder="2026 Student Application">
 
                 <label for="description">Description</label>
-                <textarea id="description" name="description" rows="3" placeholder="Tell students what this form is for."></textarea>
+                <textarea id="description" name="description" rows="3" placeholder="Tell students what this form is for.">{{ form.description if form else '' }}</textarea>
 
                 <div class="question-builder-header">
                     <h2>Questions</h2>
@@ -62,10 +62,25 @@
     <script>
         const list = document.getElementById('questions');
         const template = document.getElementById('question-template');
+        const initialQuestions = {{ questions|map(attribute='label')|list|tojson }};
+        const initialQuestionData = {{ questions|map(attribute='question_type')|list|tojson }};
+        const initialOptions = {{ questions|map(attribute='options')|list|tojson }};
+        const initialRequired = {{ questions|map(attribute='required')|list|tojson }};
         const addQuestion = () => {
             const question = template.content.cloneNode(true);
             const fieldset = question.querySelector('fieldset');
-            fieldset.querySelector('.question-number').textContent = list.children.length + 1;
+            const index = list.children.length;
+            fieldset.querySelector('.question-number').textContent = index + 1;
+            fieldset.querySelector('input[name="question_label"]').name = `question_label_${index}`;
+            fieldset.querySelector('select[name="question_type"]').name = `question_type_${index}`;
+            fieldset.querySelector('input[name="question_options"]').name = `question_options_${index}`;
+            fieldset.querySelector('input[name="question_required"]').name = `question_required_${index}`;
+            if (initialQuestions[index]) {
+                fieldset.querySelector(`input[name="question_label_${index}"]`).value = initialQuestions[index];
+                fieldset.querySelector(`select[name="question_type_${index}"]`).value = initialQuestionData[index];
+                fieldset.querySelector(`input[name="question_options_${index}"]`).value = initialOptions[index];
+                fieldset.querySelector(`input[name="question_required_${index}"]`).checked = Boolean(initialRequired[index]);
+            }
             fieldset.querySelector('.remove-question').addEventListener('click', () => {
                 fieldset.remove();
                 [...list.children].forEach((item, index) => item.querySelector('.question-number').textContent = index + 1);
@@ -78,7 +93,11 @@
             list.appendChild(question);
         };
         document.getElementById('add-question').addEventListener('click', addQuestion);
-        addQuestion();
+        if (initialQuestions.length) {
+            initialQuestions.forEach(() => addQuestion());
+        } else {
+            addQuestion();
+        }
     </script>
 </body>
 </html>

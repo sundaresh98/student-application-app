@@ -208,6 +208,49 @@ def create_form(title, description, question_data, logo_path=""):
         return form_id
 
 
+def read_question_data(form_request):
+    questions = []
+    index = 0
+    while True:
+        label = form_request.form.get(f"question_label_{index}", "").strip()
+        if not label:
+            break
+        question_type = form_request.form.get(f"question_type_{index}", "short_answer")
+        options = form_request.form.get(f"question_options_{index}", "").strip()
+        questions.append({
+            "label": label,
+            "type": question_type,
+            "options": options,
+            "required": 1 if form_request.form.get(f"question_required_{index}") == "1" else 0,
+        })
+        index += 1
+    return questions
+
+
+def validate_question_data(questions):
+    errors = []
+    for index, question in enumerate(questions):
+        if question["type"] not in QUESTION_TYPES:
+            errors.append(f"Question {index + 1} has an invalid response type.")
+        if question["type"] in ("single_choice", "multiple_choice") and not question["options"]:
+            errors.append(f"Question {index + 1} needs options separated by commas.")
+    if not questions:
+        errors.append("Add at least one question.")
+    return errors
+
+
+def replace_questions(form_id, questions):
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.execute("DELETE FROM form_questions WHERE form_id = ?", (form_id,))
+        for position, question in enumerate(questions):
+            connection.execute(
+                """INSERT INTO form_questions
+                (form_id, label, question_type, options, required, position)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (form_id, question["label"], question["type"], question["options"], question["required"], position),
+            )
+
+
 init_db()
 
 
@@ -331,32 +374,11 @@ def admin_new_form():
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
         logo = request.files.get("logo")
-        labels = request.form.getlist("question_label")
-        types = request.form.getlist("question_type")
-        options = request.form.getlist("question_options")
-        required = request.form.getlist("question_required")
-        questions = []
+        questions = read_question_data(request)
 
         if not title:
             errors.append("Form title is required.")
-        for index, label in enumerate(labels):
-            label = label.strip()
-            question_type = types[index] if index < len(types) else "short_answer"
-            question_options = options[index].strip() if index < len(options) else ""
-            if not label:
-                continue
-            if question_type not in QUESTION_TYPES:
-                errors.append(f"Question {index + 1} has an invalid response type.")
-            if question_type in ("single_choice", "multiple_choice") and not question_options:
-                errors.append(f"Question {index + 1} needs options separated by commas.")
-            questions.append({
-                "label": label,
-                "type": question_type,
-                "options": question_options,
-                "required": 1 if str(index) in required else 0,
-            })
-        if not questions:
-            errors.append("Add at least one question.")
+        errors.extend(validate_question_data(questions))
 
         logo_path = ""
         if logo and logo.filename:
@@ -373,7 +395,38 @@ def admin_new_form():
             form_id = create_form(title, description, questions, logo_path)
             return redirect(url_for("admin_forms"))
 
-    return render_template("admin_form_builder.html", errors=errors, question_types=QUESTION_TYPES)
+    return render_template("admin_form_builder.html", errors=errors, question_types=QUESTION_TYPES, form=None, questions=[])
+
+
+@app.route("/admin/forms/<int:form_id>/edit", methods=["GET", "POST"])
+def admin_edit_form(form_id):
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    form, existing_questions = get_form(form_id)
+    if not form:
+        abort(404)
+
+    errors = []
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        questions = read_question_data(request)
+        if not title:
+            errors.append("Form title is required.")
+        errors.extend(validate_question_data(questions))
+        if not errors:
+            with sqlite3.connect(DATABASE_PATH) as connection:
+                connection.execute("UPDATE forms SET title = ?, description = ? WHERE id = ?", (title, description, form_id))
+            replace_questions(form_id, questions)
+            return redirect(url_for("admin_forms"))
+
+    return render_template(
+        "admin_form_builder.html",
+        errors=errors,
+        question_types=QUESTION_TYPES,
+        form=form,
+        questions=existing_questions,
+    )
 
 
 @app.route("/forms/<int:form_id>/logo")
