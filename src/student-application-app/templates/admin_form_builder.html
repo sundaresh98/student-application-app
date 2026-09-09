@@ -18,14 +18,14 @@
             {% endif %}
 
             <form method="post" id="builder-form" enctype="multipart/form-data">
+                <label for="logo">Logo <span class="hint">Optional image shown above the form title</span></label>
+                <input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
+
                 <label for="title">Form title</label>
                 <input id="title" name="title" type="text" required placeholder="2026 Student Application">
 
                 <label for="description">Description</label>
                 <textarea id="description" name="description" rows="3" placeholder="Tell students what this form is for."></textarea>
-
-                <label for="logo">Logo <span class="hint">Optional image shown above the form title</span></label>
-                <input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
 
                 <div class="question-builder-header">
                     <h2>Questions</h2>
@@ -42,14 +42,14 @@
     </main>
     <template id="question-template">
         <fieldset class="builder-question">
-                <label for="logo">Logo <span class="hint">Optional image shown above the form title</span></label>
-                <input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
-
             <legend>Question <span class="question-number"></span></legend>
             <button class="remove-question" type="button">Remove</button>
             <label>Question text</label>
             <input name="question_label" type="text" required placeholder="What is your full name?">
             <label>Response type</label>
+            <select name="question_type" class="question-type">
+                <option value="short_answer">Short answer</option>
+                <option value="long_answer">Long answer</option>
                 <option value="single_choice">Single choice</option>
                 <option value="multiple_choice">Multiple choice</option>
                 <option value="file_upload">Image or PDF upload</option>
