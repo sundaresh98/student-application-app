@@ -25,6 +25,8 @@ FIELD_LABELS = {
     "course": "Course",
 }
 
+APPLICATION_STATUSES = ("submitted", "reviewed", "accepted", "rejected")
+
 
 def init_db():
     with sqlite3.connect(DATABASE_PATH) as connection:
@@ -61,16 +63,46 @@ def save_application(form_data):
         )
 
 
-def get_applications():
+def get_applications(search="", status=""):
     with sqlite3.connect(DATABASE_PATH) as connection:
         connection.row_factory = sqlite3.Row
-        return connection.execute(
-            """
+        query = """
             SELECT id, name, email, phone, course, application_date, status
             FROM student_applications
-            ORDER BY id DESC
-            """
+            WHERE 1 = 1
+        """
+        parameters = []
+        if search:
+            query += " AND (name LIKE ? OR email LIKE ? OR course LIKE ?)"
+            search_term = f"%{search}%"
+            parameters.extend([search_term, search_term, search_term])
+        if status in APPLICATION_STATUSES:
+            query += " AND status = ?"
+            parameters.append(status)
+        query += " ORDER BY id DESC"
+        return connection.execute(query, parameters).fetchall()
+
+
+def get_status_counts():
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        counts = {status: 0 for status in APPLICATION_STATUSES}
+        rows = connection.execute(
+            "SELECT status, COUNT(*) FROM student_applications GROUP BY status"
         ).fetchall()
+        for status, count in rows:
+            if status in counts:
+                counts[status] = count
+        return counts
+
+
+def update_application_status(application_id, status):
+    if status not in APPLICATION_STATUSES:
+        return
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.execute(
+            "UPDATE student_applications SET status = ? WHERE id = ?",
+            (status, application_id),
+        )
 
 
 def admin_is_authenticated():
@@ -157,7 +189,24 @@ def admin_login():
 def admin_applications():
     if not admin_is_authenticated():
         return redirect(url_for("admin_login"))
-    return render_template("admin_applications.html", applications=get_applications())
+    search = request.args.get("search", "").strip()
+    status = request.args.get("status", "")
+    return render_template(
+        "admin_applications.html",
+        applications=get_applications(search, status),
+        counts=get_status_counts(),
+        search=search,
+        selected_status=status,
+        statuses=APPLICATION_STATUSES,
+    )
+
+
+@app.route("/admin/applications/<int:application_id>/status", methods=["POST"])
+def admin_update_status(application_id):
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    update_application_status(application_id, request.form.get("status", ""))
+    return redirect(url_for("admin_applications"))
 
 
 @app.route("/admin/logout")

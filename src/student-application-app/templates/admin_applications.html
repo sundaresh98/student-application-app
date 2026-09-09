@@ -20,6 +20,31 @@
             </nav>
         </header>
 
+        <section class="admin-summary" aria-label="Application summary">
+            {% for status in statuses %}
+                <a class="summary-item" href="{{ url_for('admin_applications', status=status) }}">
+                    <strong>{{ counts[status] }}</strong>
+                    <span>{{ status }}</span>
+                </a>
+            {% endfor %}
+        </section>
+
+        <form class="filters" method="get">
+            <label for="search">Search applications</label>
+            <input id="search" name="search" type="search" value="{{ search }}" placeholder="Name, email, or course">
+            <label for="status">Filter by status</label>
+            <select id="status" name="status">
+                <option value="">All statuses</option>
+                {% for status in statuses %}
+                    <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ status|capitalize }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Apply filters</button>
+            {% if search or selected_status %}
+                <a class="clear-filter" href="{{ url_for('admin_applications') }}">Clear</a>
+            {% endif %}
+        </form>
+
         {% if applications %}
             <div class="table-wrap">
                 <table>
@@ -43,7 +68,15 @@
                                 <td>{{ application.phone }}</td>
                                 <td>{{ application.course }}</td>
                                 <td>{{ application.application_date }}</td>
-                                <td><span class="status">{{ application.status }}</span></td>
+                                <td>
+                                    <form class="status-form" method="post" action="{{ url_for('admin_update_status', application_id=application.id) }}">
+                                        <select name="status" aria-label="Status for {{ application.name }}" onchange="this.form.submit()">
+                                            {% for status in statuses %}
+                                                <option value="{{ status }}" {% if application.status == status %}selected{% endif %}>{{ status|capitalize }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+                                </td>
                             </tr>
                         {% endfor %}
                     </tbody>
