@@ -75,6 +75,7 @@
             fieldset.querySelector('select[name="question_type"]').name = `question_type_${index}`;
             fieldset.querySelector('input[name="question_options"]').name = `question_options_${index}`;
             fieldset.querySelector('input[name="question_required"]').name = `question_required_${index}`;
+            fieldset.querySelector('input[name^="question_required_"]').value = '1';
             if (initialQuestions[index]) {
                 fieldset.querySelector(`input[name="question_label_${index}"]`).value = initialQuestions[index];
                 fieldset.querySelector(`select[name="question_type_${index}"]`).value = initialQuestionData[index];
@@ -83,7 +84,7 @@
             }
             fieldset.querySelector('.remove-question').addEventListener('click', () => {
                 fieldset.remove();
-                [...list.children].forEach((item, index) => item.querySelector('.question-number').textContent = index + 1);
+                reindexQuestions();
             });
             const type = fieldset.querySelector('.question-type');
             const options = fieldset.querySelector('.question-options');
@@ -91,6 +92,16 @@
             type.addEventListener('change', syncOptions);
             syncOptions();
             list.appendChild(question);
+            reindexQuestions();
+        };
+        const reindexQuestions = () => {
+            [...list.children].forEach((item, index) => {
+                item.querySelector('.question-number').textContent = index + 1;
+                item.querySelector('input[name^="question_label_"]').name = `question_label_${index}`;
+                item.querySelector('select[name^="question_type_"]').name = `question_type_${index}`;
+                item.querySelector('input[name^="question_options_"]').name = `question_options_${index}`;
+                item.querySelector('input[name^="question_required_"]').name = `question_required_${index}`;
+            });
         };
         document.getElementById('add-question').addEventListener('click', addQuestion);
         if (initialQuestions.length) {
