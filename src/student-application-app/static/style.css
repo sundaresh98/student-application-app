@@ -412,6 +412,13 @@ th {
     margin-top: 24px;
 }
 
+.share-link {
+    flex-basis: 100%;
+    overflow-wrap: anywhere;
+    color: #5b6b66;
+    font-size: 0.8rem;
+}
+
 .managed-form-actions form,
 .status-form {
     display: block;

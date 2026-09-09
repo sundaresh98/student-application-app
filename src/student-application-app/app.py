@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, send_file, session, url_for
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -469,6 +469,7 @@ def admin_form_responses(form_id):
     return render_template("admin_form_responses.html", form=form, questions=questions, responses=responses, answers=answers)
 
 
+@app.route("/f/<slug>", methods=["GET", "POST"])
 @app.route("/forms/<slug>", methods=["GET", "POST"])
 def public_form(slug):
     with sqlite3.connect(DATABASE_PATH) as connection:
@@ -526,6 +527,63 @@ def public_form(slug):
                     return render_template("public_form.html", form=form, questions=questions, submitted=True, errors=[])
 
         return render_template("public_form.html", form=form, questions=questions, submitted=False, errors=errors)
+
+
+@app.route("/admin/forms/<int:form_id>/responses.csv")
+def admin_form_responses_csv(form_id):
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    form, questions = get_form(form_id)
+    if not form:
+        abort(404)
+
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        responses = connection.execute(
+            "SELECT * FROM form_responses WHERE form_id = ? ORDER BY id DESC", (form_id,)
+        ).fetchall()
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Response ID", "Submitted"] + [question["label"] for question in questions])
+        for response in responses:
+            answer_rows = connection.execute(
+                "SELECT question_id, answer_text, file_name FROM form_answers WHERE response_id = ?",
+                (response["id"],),
+            ).fetchall()
+            answer_map = {
+                answer["question_id"]: answer["file_name"] or answer["answer_text"]
+                for answer in answer_rows
+            }
+            writer.writerow(
+                [response["id"], response["submitted_at"]]
+                + [answer_map.get(question["id"], "") for question in questions]
+            )
+
+    filename = f"{form['slug']}-responses.csv"
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.route("/admin/form-files/<int:answer_id>")
+def admin_form_file(answer_id):
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        answer = connection.execute(
+            "SELECT file_name, file_path FROM form_answers WHERE id = ? AND file_path != ''",
+            (answer_id,),
+        ).fetchone()
+    if not answer:
+        abort(404)
+    file_path = Path(answer["file_path"])
+    if not file_path.is_file() or UPLOADS_PATH not in file_path.parents:
+        abort(404)
+    return send_file(file_path, as_attachment=True, download_name=answer["file_name"])
 
 
 @app.route("/admin/applications.csv")

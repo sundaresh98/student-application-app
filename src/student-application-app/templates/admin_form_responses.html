@@ -14,7 +14,7 @@
                 <h1>{{ form.title }}</h1>
                 <p class="intro">{{ responses|length }} response{% if responses|length != 1 %}s{% endif %}</p>
             </div>
-            <nav class="admin-actions"><a href="{{ url_for('admin_forms') }}">Back to forms</a><a href="{{ url_for('admin_logout') }}">Sign out</a></nav>
+            <nav class="admin-actions"><a href="{{ url_for('admin_form_responses_csv', form_id=form.id) }}">Download CSV</a><a href="{{ url_for('admin_forms') }}">Back to forms</a><a href="{{ url_for('admin_logout') }}">Sign out</a></nav>
         </header>
         {% if responses %}
             <div class="response-list">
@@ -22,7 +22,7 @@
                     <article class="response-card">
                         <div class="response-heading"><h2>Response #{{ response.id }}</h2><time>{{ response.submitted_at }}</time></div>
                         {% for answer in answers[response.id] %}
-                            <div class="answer-row"><strong>{{ questions|selectattr('id', 'equalto', answer.question_id)|map(attribute='label')|first }}</strong><span>{% if answer.file_name %}Uploaded file: {{ answer.file_name }}{% else %}{{ answer.answer_text or 'No answer' }}{% endif %}</span></div>
+                            <div class="answer-row"><strong>{{ questions|selectattr('id', 'equalto', answer.question_id)|map(attribute='label')|first }}</strong><span>{% if answer.file_name %}Uploaded file: <a href="{{ url_for('admin_form_file', answer_id=answer.id) }}">{{ answer.file_name }}</a>{% else %}{{ answer.answer_text or 'No answer' }}{% endif %}</span></div>
                         {% endfor %}
                     </article>
                 {% endfor %}
