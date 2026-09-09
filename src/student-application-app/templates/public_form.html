@@ -9,6 +9,7 @@
 <body>
     <main class="form-shell">
         <section class="form-card public-form-card" aria-labelledby="page-title">
+            {% if form.logo_path %}<img class="form-logo" src="{{ url_for('form_logo', form_id=form.id) }}" alt="{{ form.title }} logo">{% endif %}
             <p class="eyebrow">Student form</p>
             <h1 id="page-title">{{ form.title }}</h1>
             {% if form.description %}<p class="intro">{{ form.description }}</p>{% endif %}

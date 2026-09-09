@@ -55,7 +55,8 @@ def init_db():
                 description TEXT NOT NULL DEFAULT '',
                 slug TEXT NOT NULL UNIQUE,
                 published INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                logo_path TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS form_questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,6 +86,9 @@ def init_db():
             );
             """
         )
+        columns = [row[1] for row in connection.execute("PRAGMA table_info(forms)").fetchall()]
+        if "logo_path" not in columns:
+            connection.execute("ALTER TABLE forms ADD COLUMN logo_path TEXT NOT NULL DEFAULT ''")
 
 
 def save_application(form_data):
@@ -183,15 +187,15 @@ def get_form(form_id, published_only=False):
         return form, questions
 
 
-def create_form(title, description, question_data):
+def create_form(title, description, question_data, logo_path=""):
     slug = slugify(title) or f"form-{uuid.uuid4().hex[:8]}"
     with sqlite3.connect(DATABASE_PATH) as connection:
         existing = connection.execute("SELECT 1 FROM forms WHERE slug = ?", (slug,)).fetchone()
         if existing:
             slug = f"{slug}-{uuid.uuid4().hex[:6]}"
         cursor = connection.execute(
-            "INSERT INTO forms (title, description, slug, created_at) VALUES (?, ?, ?, ?)",
-            (title, description, slug, datetime.now(timezone.utc).isoformat()),
+            "INSERT INTO forms (title, description, slug, created_at, logo_path) VALUES (?, ?, ?, ?, ?)",
+            (title, description, slug, datetime.now(timezone.utc).isoformat(), logo_path),
         )
         form_id = cursor.lastrowid
         for position, question in enumerate(question_data):
@@ -326,6 +330,7 @@ def admin_new_form():
     if request.method == "POST":
         title = request.form.get("title", "").strip()
         description = request.form.get("description", "").strip()
+        logo = request.files.get("logo")
         labels = request.form.getlist("question_label")
         types = request.form.getlist("question_type")
         options = request.form.getlist("question_options")
@@ -353,11 +358,33 @@ def admin_new_form():
         if not questions:
             errors.append("Add at least one question.")
 
+        logo_path = ""
+        if logo and logo.filename:
+            logo_name = secure_filename(logo.filename)
+            if Path(logo_name).suffix.lower() not in (".jpg", ".jpeg", ".png", ".gif", ".webp"):
+                errors.append("Logo must be a JPG, PNG, GIF, or WebP image.")
+            else:
+                logo_directory = UPLOADS_PATH / "logos"
+                logo_directory.mkdir(exist_ok=True)
+                logo_path = str(logo_directory / f"{uuid.uuid4().hex}{Path(logo_name).suffix.lower()}")
+                logo.save(logo_path)
+
         if not errors:
-            form_id = create_form(title, description, questions)
+            form_id = create_form(title, description, questions, logo_path)
             return redirect(url_for("admin_forms"))
 
     return render_template("admin_form_builder.html", errors=errors, question_types=QUESTION_TYPES)
+
+
+@app.route("/forms/<int:form_id>/logo")
+def form_logo(form_id):
+    form, _ = get_form(form_id, published_only=True)
+    if not form or not form["logo_path"]:
+        abort(404)
+    logo_path = Path(form["logo_path"])
+    if not logo_path.is_file() or UPLOADS_PATH not in logo_path.parents:
+        abort(404)
+    return Response(logo_path.read_bytes(), mimetype=f"image/{logo_path.suffix.lower().lstrip('.')}")
 
 
 @app.route("/admin/forms/<int:form_id>/publish", methods=["POST"])

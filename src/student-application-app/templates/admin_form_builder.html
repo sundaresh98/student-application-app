@@ -17,12 +17,15 @@
                 <div class="errors" role="alert"><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>
             {% endif %}
 
-            <form method="post" id="builder-form">
+            <form method="post" id="builder-form" enctype="multipart/form-data">
                 <label for="title">Form title</label>
                 <input id="title" name="title" type="text" required placeholder="2026 Student Application">
 
                 <label for="description">Description</label>
                 <textarea id="description" name="description" rows="3" placeholder="Tell students what this form is for."></textarea>
+
+                <label for="logo">Logo <span class="hint">Optional image shown above the form title</span></label>
+                <input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/gif,image/webp">
 
                 <div class="question-builder-header">
                     <h2>Questions</h2>
