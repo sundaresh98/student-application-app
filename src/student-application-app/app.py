@@ -1,9 +1,11 @@
 import os
+import csv
+import io
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import Flask, Response, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "development-key-change-me")
@@ -59,6 +61,22 @@ def save_application(form_data):
         )
 
 
+def get_applications():
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        return connection.execute(
+            """
+            SELECT id, name, email, phone, course, application_date, status
+            FROM student_applications
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+
+def admin_is_authenticated():
+    return session.get("admin_authenticated") is True
+
+
 init_db()
 
 
@@ -110,6 +128,54 @@ def application_form(step):
         current_step=step,
         total_steps=len(STEPS),
         step_title=STEPS[step]["title"],
+    )
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error = None
+    if request.method == "POST":
+        username = os.environ.get("ADMIN_USERNAME")
+        password = os.environ.get("ADMIN_PASSWORD")
+        if not username or not password:
+            error = "Admin credentials are not configured on the server."
+        elif request.form.get("username") == username and request.form.get("password") == password:
+            session["admin_authenticated"] = True
+            return redirect(url_for("admin_applications"))
+        else:
+            error = "Incorrect username or password."
+
+    return render_template("admin_login.html", error=error)
+
+
+@app.route("/admin/applications")
+def admin_applications():
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    return render_template("admin_applications.html", applications=get_applications())
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_authenticated", None)
+    return redirect(url_for("admin_login"))
+
+
+@app.route("/admin/applications.csv")
+def admin_applications_csv():
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Name", "Email", "Phone", "Course", "Application date", "Status"])
+    for application in get_applications():
+        writer.writerow(tuple(application))
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=student-applications.csv"},
     )
 
 

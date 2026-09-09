@@ -61,6 +61,10 @@ The repository includes `render.yaml` for deployment on Render. Push the reposit
 
 The current SQLite database is suitable for local development and a temporary demo. For permanent public data storage, replace it with a hosted PostgreSQL database before collecting real student information, because free web instances may replace local files during redeploys.
 
+## Admin Responses
+
+Open `/admin/login` on the deployed site to view submitted applications and download a CSV file. Configure `ADMIN_USERNAME` and `ADMIN_PASSWORD` in the Render service environment before using the dashboard. These values are intentionally not stored in the repository.
+
 ## Usage Guidelines
 
 - Navigate to the application form page to fill out the required information.

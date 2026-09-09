@@ -197,6 +197,97 @@ button:hover {
     font-weight: 700;
 }
 
+.admin-shell {
+    min-height: 100vh;
+    padding: 48px clamp(16px, 5vw, 72px);
+    background: linear-gradient(135deg, #eef4ed 0%, #dce9e2 100%);
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: end;
+    max-width: 1400px;
+    margin: 0 auto 32px;
+}
+
+.admin-header h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.admin-actions {
+    display: flex;
+    gap: 18px;
+    padding-bottom: 14px;
+}
+
+.admin-actions a {
+    color: #923e29;
+    font-weight: 700;
+}
+
+.table-wrap {
+    max-width: 1400px;
+    margin: 0 auto;
+    overflow-x: auto;
+    border: 1px solid #d0ddd4;
+    border-radius: 8px;
+    background: #fffdf8;
+    box-shadow: 0 18px 50px rgba(32, 50, 47, 0.12);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+}
+
+th,
+td {
+    padding: 15px 16px;
+    border-bottom: 1px solid #e2ebe4;
+    text-align: left;
+    white-space: nowrap;
+}
+
+th {
+    color: #30433e;
+    background: #f1f5f0;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.status {
+    padding: 5px 8px;
+    border-radius: 4px;
+    color: #245b45;
+    background: #e1f1e6;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.empty-state {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 48px;
+    border: 1px solid #d0ddd4;
+    border-radius: 8px;
+    background: #fffdf8;
+    text-align: center;
+}
+
+@media (max-width: 700px) {
+    .admin-header {
+        display: block;
+    }
+
+    .admin-actions {
+        padding-top: 10px;
+    }
+}
+
 @media (max-width: 520px) {
     .form-card {
         padding: 28px 22px;

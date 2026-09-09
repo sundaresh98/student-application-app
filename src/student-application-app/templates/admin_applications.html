@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Submitted applications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="admin-shell">
+        <header class="admin-header">
+            <div>
+                <p class="eyebrow">Private area</p>
+                <h1>Submitted applications</h1>
+                <p class="intro">{{ applications|length }} application{% if applications|length != 1 %}s{% endif %} received</p>
+            </div>
+            <nav class="admin-actions" aria-label="Admin actions">
+                <a href="{{ url_for('admin_applications_csv') }}">Download CSV</a>
+                <a href="{{ url_for('admin_logout') }}">Sign out</a>
+            </nav>
+        </header>
+
+        {% if applications %}
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Course</th>
+                            <th>Submitted</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for application in applications %}
+                            <tr>
+                                <td>{{ application.id }}</td>
+                                <td>{{ application.name }}</td>
+                                <td>{{ application.email }}</td>
+                                <td>{{ application.phone }}</td>
+                                <td>{{ application.course }}</td>
+                                <td>{{ application.application_date }}</td>
+                                <td><span class="status">{{ application.status }}</span></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <section class="empty-state">
+                <h2>No applications yet</h2>
+                <p>Completed student submissions will appear here.</p>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>
