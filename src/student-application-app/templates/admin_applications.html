@@ -15,6 +15,7 @@
                 <p class="intro">{{ applications|length }} application{% if applications|length != 1 %}s{% endif %} received</p>
             </div>
             <nav class="admin-actions" aria-label="Admin actions">
+                <a href="{{ url_for('admin_forms') }}">Form manager</a>
                 <a href="{{ url_for('admin_applications_csv') }}">Download CSV</a>
                 <a href="{{ url_for('admin_logout') }}">Sign out</a>
             </nav>

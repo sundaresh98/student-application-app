@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ form.title }} responses</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="admin-shell">
+        <header class="admin-header">
+            <div>
+                <p class="eyebrow">Form responses</p>
+                <h1>{{ form.title }}</h1>
+                <p class="intro">{{ responses|length }} response{% if responses|length != 1 %}s{% endif %}</p>
+            </div>
+            <nav class="admin-actions"><a href="{{ url_for('admin_forms') }}">Back to forms</a><a href="{{ url_for('admin_logout') }}">Sign out</a></nav>
+        </header>
+        {% if responses %}
+            <div class="response-list">
+                {% for response in responses %}
+                    <article class="response-card">
+                        <div class="response-heading"><h2>Response #{{ response.id }}</h2><time>{{ response.submitted_at }}</time></div>
+                        {% for answer in answers[response.id] %}
+                            <div class="answer-row"><strong>{{ questions|selectattr('id', 'equalto', answer.question_id)|map(attribute='label')|first }}</strong><span>{% if answer.file_name %}Uploaded file: {{ answer.file_name }}{% else %}{{ answer.answer_text or 'No answer' }}{% endif %}</span></div>
+                        {% endfor %}
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <section class="empty-state"><h2>No responses yet</h2><p>Responses will appear here after students submit this form.</p></section>
+        {% endif %}
+    </main>
+</body>
+</html>

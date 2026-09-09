@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ form.title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="form-shell">
+        <section class="form-card public-form-card" aria-labelledby="page-title">
+            <p class="eyebrow">Student form</p>
+            <h1 id="page-title">{{ form.title }}</h1>
+            {% if form.description %}<p class="intro">{{ form.description }}</p>{% endif %}
+
+            {% if submitted %}
+                <div class="success" role="status">Your response was submitted successfully.</div>
+                <a class="secondary-link" href="{{ url_for('public_form', slug=form.slug) }}">Submit another response</a>
+            {% else %}
+                {% if errors %}<div class="errors" role="alert"><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+                <form method="post" enctype="multipart/form-data">
+                    {% for question in questions %}
+                        <fieldset class="public-question">
+                            <legend>{{ loop.index }}. {{ question.label }}{% if question.required %} <span class="required-mark">*</span>{% endif %}</legend>
+                            {% if question.question_type == 'short_answer' %}
+                                <input name="question_{{ question.id }}" type="text" {% if question.required %}required{% endif %}>
+                            {% elif question.question_type == 'long_answer' %}
+                                <textarea name="question_{{ question.id }}" rows="5" {% if question.required %}required{% endif %}></textarea>
+                            {% elif question.question_type in ('single_choice', 'multiple_choice') %}
+                                <div class="choice-list">
+                                    {% for option in question.options.split(',') %}
+                                        {% if option.strip() %}<label class="choice-label"><input name="question_{{ question.id }}" value="{{ option.strip() }}" type="{% if question.question_type == 'single_choice' %}radio{% else %}checkbox{% endif %}" {% if question.required and question.question_type == 'single_choice' %}required{% endif %}> {{ option.strip() }}</label>{% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <input name="question_{{ question.id }}" type="file" accept="image/*,.pdf" {% if question.required %}required{% endif %}>
+                                <p class="hint">Accepted: JPG, PNG, GIF, or PDF.</p>
+                            {% endif %}
+                        </fieldset>
+                    {% endfor %}
+                    <button type="submit">Submit response</button>
+                </form>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

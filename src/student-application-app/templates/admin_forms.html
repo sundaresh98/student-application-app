@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Form manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="admin-shell">
+        <header class="admin-header">
+            <div>
+                <p class="eyebrow">Private area</p>
+                <h1>Form manager</h1>
+                <p class="intro">Create and publish custom student forms.</p>
+            </div>
+            <nav class="admin-actions" aria-label="Form actions">
+                <a href="{{ url_for('admin_new_form') }}">Create a form</a>
+                <a href="{{ url_for('admin_applications') }}">Applications</a>
+                <a href="{{ url_for('admin_logout') }}">Sign out</a>
+            </nav>
+        </header>
+
+        {% if forms %}
+            <div class="form-grid">
+                {% for form in forms %}
+                    <article class="managed-form">
+                        <div class="managed-form-heading">
+                            <div>
+                                <p class="eyebrow">{% if form.published %}Published{% else %}Draft{% endif %}</p>
+                                <h2>{{ form.title }}</h2>
+                            </div>
+                            {% if form.published %}<span class="status">Live</span>{% endif %}
+                        </div>
+                        <p>{{ form.description or 'No description provided.' }}</p>
+                        <div class="managed-form-actions">
+                            {% if form.published %}<a href="{{ url_for('public_form', slug=form.slug) }}" target="_blank">Open form</a>{% endif %}
+                            <a href="{{ url_for('admin_form_responses', form_id=form.id) }}">Responses</a>
+                            <form method="post" action="{{ url_for('admin_publish_form', form_id=form.id) }}">
+                                <button type="submit">{% if form.published %}Unpublish{% else %}Publish{% endif %}</button>
+                            </form>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <section class="empty-state">
+                <h2>No forms yet</h2>
+                <p>Create your first custom student form.</p>
+                <a class="primary-link" href="{{ url_for('admin_new_form') }}">Create a form</a>
+            </section>
+        {% endif %}
+    </main>
+</body>
+</html>

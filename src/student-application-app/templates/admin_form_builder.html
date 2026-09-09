@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create a form</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="admin-shell">
+        <section class="builder-shell">
+            <p class="eyebrow">Form builder</p>
+            <h1>Create a student form</h1>
+            <p class="intro">Add questions and choose how students should respond.</p>
+
+            {% if errors %}
+                <div class="errors" role="alert"><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div>
+            {% endif %}
+
+            <form method="post" id="builder-form">
+                <label for="title">Form title</label>
+                <input id="title" name="title" type="text" required placeholder="2026 Student Application">
+
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3" placeholder="Tell students what this form is for."></textarea>
+
+                <div class="question-builder-header">
+                    <h2>Questions</h2>
+                    <button class="add-question" type="button" id="add-question">Add question</button>
+                </div>
+                <div id="questions" class="question-list"></div>
+
+                <div class="form-actions">
+                    <a class="clear-filter" href="{{ url_for('admin_forms') }}">Cancel</a>
+                    <button type="submit">Save draft</button>
+                </div>
+            </form>
+        </section>
+    </main>
+    <template id="question-template">
+        <fieldset class="builder-question">
+            <legend>Question <span class="question-number"></span></legend>
+            <button class="remove-question" type="button">Remove</button>
+            <label>Question text</label>
+            <input name="question_label" type="text" required placeholder="What is your full name?">
+            <label>Response type</label>
+            <select name="question_type" class="question-type">
+                <option value="short_answer">Short answer</option>
+                <option value="long_answer">Long answer</option>
+                <option value="single_choice">Single choice</option>
+                <option value="multiple_choice">Multiple choice</option>
+                <option value="file_upload">Image or PDF upload</option>
+            </select>
+            <label>Options <span class="hint">Use commas for choice questions</span></label>
+            <input name="question_options" class="question-options" type="text" placeholder="Option A, Option B, Option C">
+            <label class="checkbox-label"><input name="question_required" value="0" type="checkbox"> Required</label>
+        </fieldset>
+    </template>
+    <script>
+        const list = document.getElementById('questions');
+        const template = document.getElementById('question-template');
+        const addQuestion = () => {
+            const question = template.content.cloneNode(true);
+            const fieldset = question.querySelector('fieldset');
+            fieldset.querySelector('.question-number').textContent = list.children.length + 1;
+            fieldset.querySelector('.remove-question').addEventListener('click', () => {
+                fieldset.remove();
+                [...list.children].forEach((item, index) => item.querySelector('.question-number').textContent = index + 1);
+            });
+            const type = fieldset.querySelector('.question-type');
+            const options = fieldset.querySelector('.question-options');
+            const syncOptions = () => { options.disabled = !['single_choice', 'multiple_choice'].includes(type.value); };
+            type.addEventListener('change', syncOptions);
+            syncOptions();
+            list.appendChild(question);
+        };
+        document.getElementById('add-question').addEventListener('click', addQuestion);
+        addQuestion();
+    </script>
+</body>
+</html>

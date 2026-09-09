@@ -2,14 +2,18 @@ import os
 import csv
 import io
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, Response, redirect, render_template, request, session, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, session, url_for
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "development-key-change-me")
 DATABASE_PATH = Path(__file__).with_name("student_applications.db")
+UPLOADS_PATH = Path(__file__).with_name("uploads")
+UPLOADS_PATH.mkdir(exist_ok=True)
 
 STEPS = {
     1: {"title": "Personal information", "fields": ["name"]},
@@ -41,6 +45,44 @@ def init_db():
                 application_date TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'submitted'
             )
+            """
+        )
+        connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS forms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                slug TEXT NOT NULL UNIQUE,
+                published INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS form_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                form_id INTEGER NOT NULL,
+                label TEXT NOT NULL,
+                question_type TEXT NOT NULL,
+                options TEXT NOT NULL DEFAULT '',
+                required INTEGER NOT NULL DEFAULT 0,
+                position INTEGER NOT NULL,
+                FOREIGN KEY (form_id) REFERENCES forms(id)
+            );
+            CREATE TABLE IF NOT EXISTS form_responses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                form_id INTEGER NOT NULL,
+                submitted_at TEXT NOT NULL,
+                FOREIGN KEY (form_id) REFERENCES forms(id)
+            );
+            CREATE TABLE IF NOT EXISTS form_answers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                response_id INTEGER NOT NULL,
+                question_id INTEGER NOT NULL,
+                answer_text TEXT NOT NULL DEFAULT '',
+                file_name TEXT NOT NULL DEFAULT '',
+                file_path TEXT NOT NULL DEFAULT '',
+                FOREIGN KEY (response_id) REFERENCES form_responses(id),
+                FOREIGN KEY (question_id) REFERENCES form_questions(id)
+            );
             """
         )
 
@@ -107,6 +149,59 @@ def update_application_status(application_id, status):
 
 def admin_is_authenticated():
     return session.get("admin_authenticated") is True
+
+
+QUESTION_TYPES = ("short_answer", "long_answer", "single_choice", "multiple_choice", "file_upload")
+
+
+def slugify(value):
+    slug = "-".join(value.lower().split())
+    return "".join(character for character in slug if character.isalnum() or character == "-")
+
+
+def get_forms():
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        return connection.execute(
+            "SELECT id, title, description, slug, published, created_at FROM forms ORDER BY id DESC"
+        ).fetchall()
+
+
+def get_form(form_id, published_only=False):
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        form_query = "SELECT * FROM forms WHERE id = ?"
+        parameters = [form_id]
+        if published_only:
+            form_query += " AND published = 1"
+        form = connection.execute(form_query, parameters).fetchone()
+        if not form:
+            return None, []
+        questions = connection.execute(
+            "SELECT * FROM form_questions WHERE form_id = ? ORDER BY position, id", (form_id,)
+        ).fetchall()
+        return form, questions
+
+
+def create_form(title, description, question_data):
+    slug = slugify(title) or f"form-{uuid.uuid4().hex[:8]}"
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        existing = connection.execute("SELECT 1 FROM forms WHERE slug = ?", (slug,)).fetchone()
+        if existing:
+            slug = f"{slug}-{uuid.uuid4().hex[:6]}"
+        cursor = connection.execute(
+            "INSERT INTO forms (title, description, slug, created_at) VALUES (?, ?, ?, ?)",
+            (title, description, slug, datetime.now(timezone.utc).isoformat()),
+        )
+        form_id = cursor.lastrowid
+        for position, question in enumerate(question_data):
+            connection.execute(
+                """INSERT INTO form_questions
+                (form_id, label, question_type, options, required, position)
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (form_id, question["label"], question["type"], question["options"], question["required"], position),
+            )
+        return form_id
 
 
 init_db()
@@ -213,6 +308,144 @@ def admin_update_status(application_id):
 def admin_logout():
     session.pop("admin_authenticated", None)
     return redirect(url_for("admin_login"))
+
+
+@app.route("/admin/forms")
+def admin_forms():
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    return render_template("admin_forms.html", forms=get_forms())
+
+
+@app.route("/admin/forms/new", methods=["GET", "POST"])
+def admin_new_form():
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+
+    errors = []
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        description = request.form.get("description", "").strip()
+        labels = request.form.getlist("question_label")
+        types = request.form.getlist("question_type")
+        options = request.form.getlist("question_options")
+        required = request.form.getlist("question_required")
+        questions = []
+
+        if not title:
+            errors.append("Form title is required.")
+        for index, label in enumerate(labels):
+            label = label.strip()
+            question_type = types[index] if index < len(types) else "short_answer"
+            question_options = options[index].strip() if index < len(options) else ""
+            if not label:
+                continue
+            if question_type not in QUESTION_TYPES:
+                errors.append(f"Question {index + 1} has an invalid response type.")
+            if question_type in ("single_choice", "multiple_choice") and not question_options:
+                errors.append(f"Question {index + 1} needs options separated by commas.")
+            questions.append({
+                "label": label,
+                "type": question_type,
+                "options": question_options,
+                "required": 1 if str(index) in required else 0,
+            })
+        if not questions:
+            errors.append("Add at least one question.")
+
+        if not errors:
+            form_id = create_form(title, description, questions)
+            return redirect(url_for("admin_forms"))
+
+    return render_template("admin_form_builder.html", errors=errors, question_types=QUESTION_TYPES)
+
+
+@app.route("/admin/forms/<int:form_id>/publish", methods=["POST"])
+def admin_publish_form(form_id):
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.execute("UPDATE forms SET published = 1 - published WHERE id = ?", (form_id,))
+    return redirect(url_for("admin_forms"))
+
+
+@app.route("/admin/forms/<int:form_id>/responses")
+def admin_form_responses(form_id):
+    if not admin_is_authenticated():
+        return redirect(url_for("admin_login"))
+    form, questions = get_form(form_id)
+    if not form:
+        abort(404)
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        responses = connection.execute(
+            "SELECT * FROM form_responses WHERE form_id = ? ORDER BY id DESC", (form_id,)
+        ).fetchall()
+        answers = {}
+        for response in responses:
+            answers[response["id"]] = connection.execute(
+                "SELECT * FROM form_answers WHERE response_id = ? ORDER BY question_id", (response["id"],)
+            ).fetchall()
+    return render_template("admin_form_responses.html", form=form, questions=questions, responses=responses, answers=answers)
+
+
+@app.route("/forms/<slug>", methods=["GET", "POST"])
+def public_form(slug):
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        connection.row_factory = sqlite3.Row
+        form = connection.execute("SELECT * FROM forms WHERE slug = ? AND published = 1", (slug,)).fetchone()
+        if not form:
+            abort(404)
+        questions = connection.execute(
+            "SELECT * FROM form_questions WHERE form_id = ? ORDER BY position, id", (form["id"],)
+        ).fetchall()
+
+        errors = []
+        if request.method == "POST":
+            collected = []
+            for question in questions:
+                field_name = f"question_{question['id']}"
+                upload = request.files.get(field_name)
+                answer = request.form.getlist(field_name) if question["question_type"] == "multiple_choice" else request.form.get(field_name, "").strip()
+                if question["required"] and not answer and not upload:
+                    errors.append(f"{question['label']} is required.")
+                if question["question_type"] in ("single_choice", "multiple_choice"):
+                    choices = [choice.strip() for choice in question["options"].split(",") if choice.strip()]
+                    values = answer if isinstance(answer, list) else [answer]
+                    if any(value not in choices for value in values if value):
+                        errors.append(f"Choose a valid option for {question['label']}.")
+                collected.append((question, answer, upload))
+
+            if not errors:
+                response_cursor = connection.execute(
+                    "INSERT INTO form_responses (form_id, submitted_at) VALUES (?, ?)",
+                    (form["id"], datetime.now(timezone.utc).isoformat()),
+                )
+                for question, answer, upload in collected:
+                    answer_text = ", ".join(answer) if isinstance(answer, list) else answer
+                    file_name = ""
+                    file_path = ""
+                    if question["question_type"] == "file_upload" and upload and upload.filename:
+                        safe_name = secure_filename(upload.filename)
+                        extension = Path(safe_name).suffix.lower()
+                        if extension not in (".jpg", ".jpeg", ".png", ".gif", ".pdf"):
+                            errors.append(f"{question['label']} accepts only images or PDF files.")
+                            continue
+                        file_name = safe_name
+                        target_directory = UPLOADS_PATH / str(form["id"])
+                        target_directory.mkdir(exist_ok=True)
+                        file_path = str(target_directory / f"{uuid.uuid4().hex}{extension}")
+                        upload.save(file_path)
+                    connection.execute(
+                        """INSERT INTO form_answers
+                        (response_id, question_id, answer_text, file_name, file_path)
+                        VALUES (?, ?, ?, ?, ?)""",
+                        (response_cursor.lastrowid, question["id"], answer_text, file_name, file_path),
+                    )
+                if not errors:
+                    return render_template("public_form.html", form=form, questions=questions, submitted=True, errors=[])
+
+        return render_template("public_form.html", form=form, questions=questions, submitted=False, errors=errors)
 
 
 @app.route("/admin/applications.csv")
