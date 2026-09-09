@@ -1,0 +1,18 @@
+// This file contains the logic for processing requests and responses related to student applications. 
+// It includes functions to handle application submissions and interact with the Google Sheets service.
+
+import { Request, Response } from 'express';
+import { addApplicationToSheet } from '../services/googleSheetsService';
+import { ApplicationData } from '../../types/application';
+
+export const submitApplication = async (req: Request, res: Response) => {
+    const applicationData: ApplicationData = req.body;
+
+    try {
+        await addApplicationToSheet(applicationData);
+        res.status(201).json({ message: 'Application submitted successfully!' });
+    } catch (error) {
+        console.error('Error submitting application:', error);
+        res.status(500).json({ message: 'Failed to submit application.' });
+    }
+};

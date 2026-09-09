@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { getExams, createExam, getExamById, updateExam, deleteExam } from '../controllers/examController';
+
+const router = Router();
+
+router.get('/exams', getExams);
+router.post('/exams', createExam);
+router.get('/exams/:id', getExamById);
+router.put('/exams/:id', updateExam);
+router.delete('/exams/:id', deleteExam);
+
+export default router;

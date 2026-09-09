@@ -1,0 +1,32 @@
+{
+  "name": "student-application-app",
+  "version": "1.0.0",
+  "description": "A web-based application for conducting qualifier exams and storing student applications in Google Sheets.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/server/index.js",
+    "build": "tsc",
+    "dev": "nodemon src/server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "googleapis": "^39.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "body-parser": "^1.19.0",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^4.3.2",
+    "nodemon": "^2.0.7"
+  },
+  "keywords": [
+    "qualifier",
+    "exam",
+    "application",
+    "google-sheets"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
