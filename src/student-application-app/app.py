@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "development-key-change-me")
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 DATABASE_PATH = Path(__file__).with_name("student_applications.db")
 UPLOADS_PATH = Path(__file__).with_name("uploads")
 UPLOADS_PATH.mkdir(exist_ok=True)
@@ -469,7 +470,6 @@ def admin_form_responses(form_id):
     return render_template("admin_form_responses.html", form=form, questions=questions, responses=responses, answers=answers)
 
 
-@app.route("/f/<slug>", methods=["GET", "POST"])
 @app.route("/forms/<slug>", methods=["GET", "POST"])
 def public_form(slug):
     with sqlite3.connect(DATABASE_PATH) as connection:
@@ -484,6 +484,7 @@ def public_form(slug):
         errors = []
         if request.method == "POST":
             collected = []
+            upload_metadata = {}
             for question in questions:
                 field_name = f"question_{question['id']}"
                 upload = request.files.get(field_name)
@@ -495,6 +496,13 @@ def public_form(slug):
                     values = answer if isinstance(answer, list) else [answer]
                     if any(value not in choices for value in values if value):
                         errors.append(f"Choose a valid option for {question['label']}.")
+                if question["question_type"] == "file_upload" and upload and upload.filename:
+                    safe_name = secure_filename(upload.filename)
+                    extension = Path(safe_name).suffix.lower()
+                    if extension not in (".jpg", ".jpeg", ".png", ".gif", ".pdf"):
+                        errors.append(f"{question['label']} accepts only images or PDF files.")
+                    else:
+                        upload_metadata[question["id"]] = (safe_name, extension)
                 collected.append((question, answer, upload))
 
             if not errors:
@@ -506,12 +514,8 @@ def public_form(slug):
                     answer_text = ", ".join(answer) if isinstance(answer, list) else answer
                     file_name = ""
                     file_path = ""
-                    if question["question_type"] == "file_upload" and upload and upload.filename:
-                        safe_name = secure_filename(upload.filename)
-                        extension = Path(safe_name).suffix.lower()
-                        if extension not in (".jpg", ".jpeg", ".png", ".gif", ".pdf"):
-                            errors.append(f"{question['label']} accepts only images or PDF files.")
-                            continue
+                    if question["id"] in upload_metadata:
+                        safe_name, extension = upload_metadata[question["id"]]
                         file_name = safe_name
                         target_directory = UPLOADS_PATH / str(form["id"])
                         target_directory.mkdir(exist_ok=True)
@@ -527,6 +531,11 @@ def public_form(slug):
                     return render_template("public_form.html", form=form, questions=questions, submitted=True, errors=[])
 
         return render_template("public_form.html", form=form, questions=questions, submitted=False, errors=errors)
+
+
+@app.route("/f/<slug>", methods=["GET", "POST"])
+def short_public_form(slug):
+    return public_form(slug)
 
 
 @app.route("/admin/forms/<int:form_id>/responses.csv")
@@ -545,6 +554,13 @@ def admin_form_responses_csv(form_id):
 
         output = io.StringIO()
         writer = csv.writer(output)
+
+        def csv_value(value):
+            value = str(value or "")
+            if value.startswith(("=", "+", "-", "@")):
+                return "'" + value
+            return value
+
         writer.writerow(["Response ID", "Submitted"] + [question["label"] for question in questions])
         for response in responses:
             answer_rows = connection.execute(
@@ -557,7 +573,7 @@ def admin_form_responses_csv(form_id):
             }
             writer.writerow(
                 [response["id"], response["submitted_at"]]
-                + [answer_map.get(question["id"], "") for question in questions]
+                + [csv_value(answer_map.get(question["id"], "")) for question in questions]
             )
 
     filename = f"{form['slug']}-responses.csv"
