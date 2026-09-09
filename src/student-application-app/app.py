@@ -86,6 +86,11 @@ def start_application():
     return redirect(url_for("application_form", step=1))
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return Response(status=204)
+
+
 @app.route("/application/<int:step>", methods=["GET", "POST"])
 def application_form(step):
     if step not in STEPS:
