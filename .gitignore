@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 .venv/
 
+# Node modules
+node_modules/
+.next/
+
 # Secrets and local configuration
 .env
 
