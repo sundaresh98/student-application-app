@@ -1,5 +1,19 @@
 services:
   - type: web
+    name: nptel-admin-portal
+    runtime: node
+    rootDir: nptel-admin-portal
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+
+  - type: web
     name: student-application-app
     runtime: python
     rootDir: src/student-application-app
