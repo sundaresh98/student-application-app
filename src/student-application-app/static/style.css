@@ -41,6 +41,39 @@ body {
     text-transform: uppercase;
 }
 
+.institute-name {
+    max-width: 620px;
+    margin: 0 0 18px;
+    color: #24105e;
+    font-family: 'Noto Sans Bengali', 'Noto Sans Devanagari', 'Space Grotesk', sans-serif;
+    font-size: clamp(0.82rem, 1.8vw, 1.2rem);
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.institute-name span,
+.institute-name strong {
+    display: block;
+}
+
+.institute-name strong {
+    margin-top: 4px;
+    color: #e05218;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9em;
+    letter-spacing: 0.04em;
+}
+
+.admin-institute-logo {
+    width: min(100%, 420px);
+    margin-bottom: 20px;
+}
+
+.form-card .institute-name {
+    width: 100%;
+    margin: 0 0 28px;
+}
+
 h1 {
     margin: 0;
     color: #20322f;

@@ -3,8 +3,9 @@ services:
     name: student-application-app
     runtime: python
     rootDir: src/student-application-app
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    buildCommand: python -m pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /
     plan: free
     envVars:
       - key: FLASK_SECRET_KEY
