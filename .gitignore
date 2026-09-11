@@ -9,6 +9,10 @@ node_modules/
 
 # Secrets and local configuration
 .env
+.env*.local
 
 # Local student data
 src/student-application-app/student_applications.db
+src/student-application-app/uploads/
+*.db
+

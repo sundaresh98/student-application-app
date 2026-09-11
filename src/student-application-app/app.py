@@ -92,6 +92,10 @@ def init_db():
             connection.execute("ALTER TABLE forms ADD COLUMN logo_path TEXT NOT NULL DEFAULT ''")
 
 
+init_db()
+
+
+
 def save_application(form_data):
     with sqlite3.connect(DATABASE_PATH) as connection:
         connection.execute(

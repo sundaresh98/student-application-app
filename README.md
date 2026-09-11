@@ -1,6 +1,9 @@
-# Qualifier Exam Application
+# Student Application & NPTEL Admin Portal
 
-This is a web-based application designed to conduct qualifier exams. The application consists of a client-side built with React and a server-side built with Node.js and Express.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/sundaresh98/nptel-student-app)
+
+This repository contains the NPTEL Admin Portal (Next.js 14) and the Student Application Backend (Flask).
+
 
 ## Project Structure
 
